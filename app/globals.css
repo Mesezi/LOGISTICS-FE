@@ -1,26 +1,194 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS
+   All semantic roles are defined here as CSS custom properties so components
+   can reference var(--token) directly.  Tailwind utilities are generated from
+   the @theme block below, keeping class names consistent across the codebase.
+───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  /* ── Brand / primary ───────────────────────────────────────────────────── */
+  --brand:          #F04A4A;   /* red — icon tiles, active bars, links       */
+  --brand-text:     #EF4646;   /* slightly softer; shipment IDs, inline links */
+  --brand-dark:     #D93E3E;   /* hover / pressed states                     */
+
+  /* ── Surface ───────────────────────────────────────────────────────────── */
+  --page:           #F4F5F7;   /* outer background / card gaps               */
+  --card:           #FEFEFE;   /* cards, sidebar  (treat as #FFFFFF)         */
+  --card-alt:       #FCDFE1;   /* pink tint — active nav, table header,
+                                  alert cards, icon circles, pale bars,
+                                  "Out for Delivery" chip                    */
+
+  /* ── Text ──────────────────────────────────────────────────────────────── */
+  --ink:            #252525;   /* headings, big numbers                      */
+  --ink-dark:       #292929;   /* "New Shipping" button, dark donut segment  */
+  --ink-muted:      #727272;   /* labels, placeholders, secondary text       */
+  --ink-grey:       #757575;   /* grey donut segment, 17% chip, counts       */
+
+  /* ── Border / divider ──────────────────────────────────────────────────── */
+  --border:         #E6E8EC;   /* dividers and quiet outlines                */
+
+  /* ── Semantic status ───────────────────────────────────────────────────── */
+  /* Success */
+  --success-bg:     #D8F9E6;
+  --success-text:   #047A37;
+
+  /* Info / Processing */
+  --info-bg:        #E4ECFF;
+  --info-text:      #1E59BF;
+
+  /* Debt / warning (kept from previous palette) */
+  --debt:           #D97706;
+  --debt-bg:        #FEF3C7;
+
+  /* Loss / danger */
+  --loss:           #DC2626;
+  --loss-bg:        #FEE2E2;
+
+  /* ── Misc ──────────────────────────────────────────────────────────────── */
+  --radius-card:    12px;
+  --radius-input:   10px;
+  --shadow-dialog:  0 20px 60px -12px rgba(0,0,0,.18);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   TAILWIND v4 THEME — exposes every token as a Tailwind utility class.
+   e.g.  bg-brand  text-ink-muted  border-border  bg-card-alt
+───────────────────────────────────────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* fonts */
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+
+  /* colours — map CSS vars so tw utilities follow dark-mode automatically */
+  --color-brand:        var(--brand);
+  --color-brand-text:   var(--brand-text);
+  --color-brand-dark:   var(--brand-dark);
+
+  --color-page:         var(--page);
+  --color-card:         var(--card);
+  --color-card-alt:     var(--card-alt);
+
+  --color-ink:          var(--ink);
+  --color-ink-dark:     var(--ink-dark);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-grey:     var(--ink-grey);
+
+  --color-border:       var(--border);
+
+  --color-success-bg:   var(--success-bg);
+  --color-success-text: var(--success-text);
+
+  --color-info-bg:      var(--info-bg);
+  --color-info-text:    var(--info-text);
+
+  --color-debt:         var(--debt);
+  --color-debt-bg:      var(--debt-bg);
+
+  --color-loss:         var(--loss);
+  --color-loss-bg:      var(--loss-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE STYLES
+───────────────────────────────────────────────────────────────────────────── */
+html { height: 100%; font-size: 14px; box-sizing: border-box; }
+
+body {
+  background-color: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(37, 37, 37, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 37, 37, 0.018) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.app-content {
+  background: var(--page);
+}
+
+.app-content h1 {
+  color: var(--ink);
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.25;
+}
+
+::selection { background: color-mix(in srgb, var(--brand) 18%, transparent); }
+
+input, select, textarea {
+  color-scheme: light;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tabular numbers — apply to any element showing money or counts */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STATUS / CHIP HELPER CLASSES
+   Use these on <Badge> or inline <span> so colour meaning is consistent.
+───────────────────────────────────────────────────────────────────────────── */
+/* Delivered / success */
+.chip-success  { background: var(--success-bg);  color: var(--success-text); }
+/* Processing / info */
+.chip-info     { background: var(--info-bg);      color: var(--info-text);    }
+/* In Transit / neutral */
+.chip-neutral  { background: var(--border);        color: var(--ink-grey);     }
+/* Out for Delivery / pink */
+.chip-pink     { background: var(--card-alt);      color: var(--brand);        }
+/* Pending / debt */
+.chip-debt     { background: var(--debt-bg);       color: var(--debt);         }
+/* Failed / loss */
+.chip-loss     { background: var(--loss-bg);       color: var(--loss);         }
+/* Dark — matches the charcoal chip (#292929 on white) */
+.chip-dark     { background: var(--ink-dark);      color: #FFFFFF;             }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SCROLLBAR
+───────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 6px; height: 6px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: var(--border); border-radius: 3px; }
+
+
+@media (min-width: 639px) {
+  html{
+    font-size: 16px;
+  }
 }
