@@ -8,11 +8,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute -right-36 -top-36 h-96 w-96 rounded-full bg-card-alt/80 blur-3xl" />
         <div className="absolute -bottom-44 -left-40 h-[28rem] w-[28rem] rounded-full bg-brand/5 blur-3xl" />
 
-        <Link href="/" className="relative inline-flex w-fit items-center gap-3" aria-label="ShipNow home">
+        <Link href="/" className="relative inline-flex w-fit items-center gap-3" aria-label="BluSync home">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white shadow-lg shadow-brand/20">
             <Truck size={20} strokeWidth={2} />
           </span>
-          <span className="text-[17px] font-bold tracking-tight text-ink">SHIPNOW</span>
+          <span className="text-[17px] font-bold tracking-tight text-ink">BluSync</span>
         </Link>
 
         <div className="relative my-12 max-w-xl">
@@ -52,14 +52,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <main className="h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain">
         <div className="flex min-h-full w-full items-center justify-center px-5 py-8 sm:px-10 sm:py-12">
           <div className="w-full max-w-[430px] shrink-0">
-            <Link href="/" className="mb-8 inline-flex items-center gap-2.5 lg:hidden" aria-label="ShipNow home">
+            <Link href="/" className="mb-8 inline-flex items-center gap-2.5 lg:hidden" aria-label="BluSync home">
               <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand text-white"><Truck size={18} /></span>
-              <span className="text-base font-bold tracking-tight text-ink">SHIPNOW</span>
+              <span className="text-base font-bold tracking-tight text-ink">BluSync</span>
             </Link>
             <div className="auth-card rounded-2xl border border-border/80 bg-white p-6 shadow-[0_20px_70px_rgba(27,36,51,.08)] sm:p-9">
               {children}
             </div>
-            <p className="mt-6 text-center text-[11px] text-ink-grey">Secure access to your ShipNow workspace</p>
+            <p className="mt-6 text-center text-[11px] text-ink-grey">Secure access to your BluSync workspace</p>
           </div>
         </div>
       </main>

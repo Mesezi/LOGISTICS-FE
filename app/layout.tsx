@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ShipNow Logistics",
-  description: "Logistics operations and financial management",
+  title: "BluSync",
+  description: "BluSync logistics operations and financial management",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -34,4 +34,3 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
    
   );
 }
-

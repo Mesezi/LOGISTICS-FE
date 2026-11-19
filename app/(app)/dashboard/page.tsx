@@ -5,7 +5,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { format, subDays } from 'date-fns';
 import {
   TrendingUp, Banknote, TriangleAlert, Receipt,
-  Plus, ChevronRight, MapPin, Truck, CalendarDays,
+  Plus, ChevronRight, MapPin, Truck, CalendarDays, Download,
 } from 'lucide-react';
 import { reportsApi, jobsApi, type Job } from '@/lib/api';
 import { fmt, fmtDate, statusColors } from '@/lib/utils';
@@ -27,6 +27,8 @@ export default function DashboardPage() {
 
   const [today,     setToday]     = useState('');
   const [yesterday, setYesterday] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   /* anchor the weekly chart to the selected date */
   const anchorDate = activeDate ? new Date(`${activeDate}T12:00:00`) : null;
@@ -76,6 +78,28 @@ export default function DashboardPage() {
     (j) => j.status === 'pending' || j.status === 'failed' || j.status === 'cancelled',
   );
 
+  async function handleExportDailyReport() {
+    if (!activeDate || exporting) return;
+    setExporting(true);
+    setExportError('');
+
+    try {
+      const file = await reportsApi.exportDaily(activeDate);
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `daily-report-${activeDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setExportError('Could not download the daily report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   /* chart maths */
   const weekData = weekQueries.map((q) => q.data);
   const maxCash  = Math.max(...weekData.map((d) => d?.paymentsReceived ?? 0), 1);
@@ -95,45 +119,58 @@ export default function DashboardPage() {
         </div>
 
         {/* Date picker strip */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
-          {/* Quick buttons — only rendered once today/yesterday are known */}
-          {today && (
-            <>
-              <button
-                onClick={() => setActiveDate(yesterday)}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeDate === yesterday
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                Yesterday
-              </button>
-              <button
-                onClick={() => setActiveDate(today)}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeDate === today
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                Today
-              </button>
-            </>
-          )}
-          {/* Calendar icon opens the native date picker */}
-          <label className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-ink-grey transition-colors hover:bg-page hover:text-ink">
-            <CalendarDays size={15} strokeWidth={1.75} />
-            <input
-              type="date"
-              value={activeDate}
-              onChange={(e) => setActiveDate(e.target.value)}
-              className="absolute inset-0 cursor-pointer opacity-0"
-              aria-label="Pick a custom date"
-            />
-          </label>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+            {/* Quick buttons — only rendered once today/yesterday are known */}
+            {today && (
+              <>
+                <button
+                  onClick={() => setActiveDate(yesterday)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeDate === yesterday
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  Yesterday
+                </button>
+                <button
+                  onClick={() => setActiveDate(today)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    activeDate === today
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  Today
+                </button>
+              </>
+            )}
+            {/* Calendar icon opens the native date picker */}
+            <label className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-ink-grey transition-colors hover:bg-page hover:text-ink">
+              <CalendarDays size={15} strokeWidth={1.75} />
+              <input
+                type="date"
+                value={activeDate}
+                onChange={(e) => setActiveDate(e.target.value)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                aria-label="Pick a custom date"
+              />
+            </label>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download size={15} strokeWidth={1.75} />}
+            loading={exporting}
+            disabled={!activeDate}
+            onClick={handleExportDailyReport}
+          >
+            Download report
+          </Button>
         </div>
       </div>
+      {exportError && <p role="alert" className="text-right text-xs text-loss">{exportError}</p>}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

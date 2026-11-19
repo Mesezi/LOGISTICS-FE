@@ -32,7 +32,7 @@ export function Sidebar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Your account';
-  const accountName = appUser?.account.name || 'SHIPNOW';
+  const accountName = appUser?.account.name || 'BluSync';
   const email = user?.primaryEmailAddress?.emailAddress;
   const initials = displayName.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
   const imageUrl = user?.imageUrl;

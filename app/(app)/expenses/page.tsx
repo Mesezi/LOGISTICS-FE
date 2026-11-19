@@ -92,7 +92,7 @@ export default function ExpensesPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="mb-1 text-sm font-semibold uppercase tracking-[.14em] text-brand">ShipNow / Operations</p>
+          <p className="mb-1 text-sm font-semibold uppercase tracking-[.14em] text-brand">BluSync / Operations</p>
           <h1 className="text-[22px] font-semibold tracking-tight text-ink">Expenses</h1>
         </div>
         <Button

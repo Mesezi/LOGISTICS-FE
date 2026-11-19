@@ -34,7 +34,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
       <div>
         <p className="mb-1 text-sm font-semibold uppercase tracking-[.14em] text-brand">
-          {me?.account.name ?? 'ShipNow'} / Workspace
+          {me?.account.name ?? 'BluSync'} / Workspace
         </p>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink">Settings</h1>
       </div>

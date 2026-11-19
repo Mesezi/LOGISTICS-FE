@@ -18,7 +18,7 @@ export default function DirectoryPage() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-4 px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
       <div>
-        <p className="mb-1 text-sm font-semibold uppercase tracking-[.14em] text-brand">ShipNow / Network</p>
+        <p className="mb-1 text-sm font-semibold uppercase tracking-[.14em] text-brand">BluSync / Network</p>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink">Directory</h1>
       </div>
 

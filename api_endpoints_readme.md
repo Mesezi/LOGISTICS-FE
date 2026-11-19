@@ -5,7 +5,7 @@ This document describes the HTTP routes currently implemented by the NestJS appl
 ## Conventions
 
 - **Base URL:** The application does not currently set a global prefix. For local development, use `http://localhost:8000`.
-- **Authentication:** Protected routes require `Authorization: Bearer <Clerk-session-token>`. The global auth guard requires a registered user linked to an account.
+- **Authentication:** Protected routes require `Authorization: Bearer <Clerk-session-token>`. Most routes require a registered user linked to an account. `POST /auth/register` and `POST /auth/accept-invitation` accept any valid Clerk session so first-time users can complete onboarding.
 - **Authorization:** Account settings and audit-log reads require the `admin` role. Other business routes require an authenticated account user.
 - **Company scope:** Business records and reports are scoped to the authenticated user's `accountId`.
 - **Pagination:** List routes default to `page=1` and `limit=50`; `limit` is capped at 100. Paginated responses include `data` and `meta`.
@@ -14,7 +14,7 @@ This document describes the HTTP routes currently implemented by the NestJS appl
 - **Errors:** Standard NestJS error bodies contain `statusCode`, `message`, and `error`.
 - **PATCH requests:** Send only the fields being changed. `/jobs/:id`, `/partners/:id`, and `/accounts/me` use update DTOs. Other PATCH handlers currently use TypeScript `Partial<...>` types, which do not provide class-validator runtime metadata; do not rely on create-time DTO validation for those routes. Service-level business rules still apply.
 
-> **Current guard behavior:** The global auth guard protects `/`, `/health`, and the auth routes too; they are not currently decorated as public. Signup/registration flows should be reviewed before relying on them for users who do not already pass the guard.
+> `/auth/register` and `/auth/accept-invitation` still verify the Clerk token, but do not require a database user first. All other protected routes, including `/users/me`, require the app user to exist.
 
 ## Health and root
 
@@ -40,7 +40,7 @@ Returns the root greeting.
 
 ### `POST /auth/register`
 
-Create an account for the signed-in Clerk user.
+After a new company owner completes Clerk signup, create their company (`Account`) and admin app user (`User`) in one transaction. This endpoint requires a valid Clerk session token but does not require the user to already exist in the database.
 
 **Request**
 
@@ -72,9 +72,11 @@ Create an account for the signed-in Clerk user.
 }
 ```
 
+**Frontend flow:** After Clerk signup, collect the company name and call this endpoint with the active Clerk session token. On success, call `GET /users/me` and continue into the app. Do not call this endpoint for an invited user; use `POST /auth/accept-invitation` instead.
+
 ### `POST /auth/accept-invitation`
 
-Accept an invitation using its token. The signed-in Clerk account's profile supplies the user's name, email, and image.
+Accept an invitation using its token. The endpoint accepts a valid Clerk session even when the user has no database row yet. The signed-in Clerk account's profile supplies the user's name, email, and image.
 
 **Request**
 
@@ -99,14 +101,24 @@ Accept an invitation using its token. The signed-in Clerk account's profile supp
 }
 ```
 
+After success, call `GET /users/me` to load the registered app user.
+
 ### `GET /users/me`
 
-Synchronizes the signed-in user's name, email, and image from Clerk, then returns the user database row.
+Synchronizes the signed-in user's name, email, and image from Clerk, then returns the user row with a small account summary.
 
-**Response:** The signed-in user row with `id`, `account_id`, `clerk_id`, `name`, `email`, `image_url`, `role`, and `created_at`, plus an `account` summary:
+**Response**
 
 ```json
 {
+  "id": 7,
+  "account_id": 3,
+  "clerk_id": "user_clerk_id",
+  "name": "Example User",
+  "email": "user@example.com",
+  "image_url": null,
+  "role": "admin",
+  "created_at": "2026-11-18T10:00:00.000Z",
   "account": {
     "id": 3,
     "name": "Acme Logistics",
@@ -114,6 +126,8 @@ Synchronizes the signed-in user's name, email, and image from Clerk, then return
   }
 }
 ```
+
+The `account` summary lets the frontend display the company name and image during app startup without a second request.
 
 ### `POST /users/invite` — Admin
 
@@ -706,6 +720,35 @@ All reports are scoped to the current account. Optional `start_date` and `end_da
 ```
 
 Fee aggregates exclude cancelled jobs. Counts include all jobs for the date.
+
+### `GET /reports/daily/export?date=2026-11-18`
+
+Downloads the daily cash-and-expense sheet as an `.xlsx` file. `date` is optional and defaults to today's date in `Africa/Lagos`.
+
+The sheet has one row per job with a payment/refund or linked expense on the selected date. Jobs with no linked job transaction are not included. Unlinked expenses are grouped into a separate expense-only row. `Income` is payments received on the selected date minus refunds issued on that date, so refunds reduce income and may produce a negative daily amount. A payment mode displays the transfer bank name when available, otherwise `Transfer` or `Cash`; multiple modes are comma-separated.
+
+The job allocation columns show the job's fee breakdown: `office_fee` is shown as `Rider income` when a rider is assigned to a non-sublet job, and as `Office income` for sublet jobs or jobs without a rider. Sublet, park, and partner amounts are reported from the job. The client label for a sublet job is `Commission (Client name)`. Expenses use their `expense_date`; their descriptions and modes are comma-separated. Rider-owned expenses appear under `Rider expenses`, office-owned under `Office expenses`, and client-owned under `Partner/client expenses`.
+
+**Response:** Binary Excel workbook with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` and a filename such as `daily-report-2026-11-18.xlsx`.
+
+**Frontend download example**
+
+```typescript
+const response = await fetch(
+  `${API_URL}/reports/daily/export?date=2026-11-18`,
+  { headers: { Authorization: `Bearer ${clerkSessionToken}` } },
+);
+
+if (!response.ok) throw new Error('Could not download daily report');
+
+const file = await response.blob();
+const url = URL.createObjectURL(file);
+const link = document.createElement('a');
+link.href = url;
+link.download = 'daily-report-2026-11-18.xlsx';
+link.click();
+URL.revokeObjectURL(url);
+```
 
 ### `GET /reports/income`
 
