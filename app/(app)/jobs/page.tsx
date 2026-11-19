@@ -19,6 +19,7 @@ import { useUIStore } from '@/store/ui';
 import { JobDrawer } from '@/components/jobs/JobDrawer';
 import { JobDetailDrawer } from '@/components/jobs/JobDetailDrawer';
 import { ExpenseDrawer } from '@/components/expenses/ExpenseDrawer';
+import { useToday } from '@/lib/useToday';
 
 type DateRange = 'today' | '7days' | '30days' | 'custom';
 
@@ -50,6 +51,7 @@ export default function JobsPage() {
   const [range,    setRange]    = useState<DateRange>('30days');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
+  const today = useToday();
 
   const { data, isLoading } = useQuery({
     queryKey: ['jobs', { page, filter, range, dateFrom, dateTo }],
@@ -61,14 +63,15 @@ export default function JobsPage() {
       else if (filter === 'has_partner') params.has_partner = true;
       else if (filter)              params.status      = filter as JobStatus;
 
-      const today = new Date();
+      const todayDate = today ? new Date(`${today}T12:00:00`) : null;
       if (range === 'today') {
-        const d = format(today, 'yyyy-MM-dd');
-        params.date_from = d;
-        params.date_to   = d;
-      } else if (range === '7days' || range === '30days') {
-        params.date_from = format(subDays(today, range === '7days' ? 6 : 29), 'yyyy-MM-dd');
-        params.date_to   = format(today, 'yyyy-MM-dd');
+        if (today) {
+          params.date_from = today;
+          params.date_to = today;
+        }
+      } else if ((range === '7days' || range === '30days') && todayDate) {
+        params.date_from = format(subDays(todayDate, range === '7days' ? 6 : 29), 'yyyy-MM-dd');
+        params.date_to   = today;
       } else {
         if (dateFrom) params.date_from = dateFrom;
         if (dateTo)   params.date_to   = dateTo;
@@ -76,6 +79,7 @@ export default function JobsPage() {
 
       return jobsApi.list(params);
     },
+    enabled: range === 'custom' || Boolean(today),
   });
 
   const jobs = data?.data ?? [];

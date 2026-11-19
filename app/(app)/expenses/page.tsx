@@ -14,6 +14,7 @@ import { ConfirmModal } from '@/components/ui/Modal';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { useUIStore } from '@/store/ui';
 import { ExpenseDrawer } from '@/components/expenses/ExpenseDrawer';
+import { useToday } from '@/lib/useToday';
 
 const OWNER_FILTERS: { label: string; value: string }[] = [
   { label: 'All',    value: ''       },
@@ -48,18 +49,17 @@ export default function ExpensesPage() {
   const [dateFrom,   setDateFrom]   = useState('');
   const [dateTo,     setDateTo]     = useState('');
   const [deleteId,   setDeleteId]   = useState<number | null>(null);
+  const today = useToday();
 
-  // Resolve date range from preset
-  const today = new Date();
+  const todayDate = today ? new Date(`${today}T12:00:00`) : null;
   const resolvedFrom =
-    datePreset === 'today'  ? format(today, 'yyyy-MM-dd') :
-    datePreset === '7days'  ? format(subDays(today, 6), 'yyyy-MM-dd') :
-    datePreset === '30days' ? format(subDays(today, 29), 'yyyy-MM-dd') :
+    datePreset === 'today'  ? today :
+    datePreset === '7days'  && todayDate ? format(subDays(todayDate, 6), 'yyyy-MM-dd') :
+    datePreset === '30days' && todayDate ? format(subDays(todayDate, 29), 'yyyy-MM-dd') :
     datePreset === 'custom' ? dateFrom :
     '';
   const resolvedTo =
-    datePreset === 'today'  ? format(today, 'yyyy-MM-dd') :
-    datePreset === '7days'  || datePreset === '30days' ? format(today, 'yyyy-MM-dd') :
+    datePreset === 'today' || datePreset === '7days' || datePreset === '30days' ? today :
     datePreset === 'custom' ? dateTo :
     '';
 
@@ -71,6 +71,7 @@ export default function ExpensesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['expenses', params],
     queryFn: () => expensesApi.list(params),
+    enabled: datePreset === '' || datePreset === 'custom' || Boolean(today),
   });
 
   const deleteMutation = useMutation({

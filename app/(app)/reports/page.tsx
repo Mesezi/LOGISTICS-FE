@@ -10,6 +10,7 @@ import { Table, Pagination } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 import { Dropdown } from '@/components/ui/Dropdown';
+import { useToday } from '@/lib/useToday';
 
 const TABS = ['Income', 'Riders', 'Sublets', 'Partners', 'Debts', 'Failed Jobs', 'Client Statement'] as const;
 type Tab = typeof TABS[number];
@@ -29,17 +30,17 @@ export default function ReportsPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>('');
   const [startDate,  setStartDate]  = useState('');
   const [endDate,    setEndDate]    = useState('');
+  const today = useToday();
 
-  const today = new Date();
+  const todayDate = today ? new Date(`${today}T12:00:00`) : null;
   const resolvedStart =
-    datePreset === 'today'  ? format(today, 'yyyy-MM-dd') :
-    datePreset === '7days'  ? format(subDays(today, 6), 'yyyy-MM-dd') :
-    datePreset === '30days' ? format(subDays(today, 29), 'yyyy-MM-dd') :
+    datePreset === 'today'  ? today :
+    datePreset === '7days'  && todayDate ? format(subDays(todayDate, 6), 'yyyy-MM-dd') :
+    datePreset === '30days' && todayDate ? format(subDays(todayDate, 29), 'yyyy-MM-dd') :
     datePreset === 'custom' ? startDate :
     '';
   const resolvedEnd =
-    datePreset === 'today'  ? format(today, 'yyyy-MM-dd') :
-    datePreset === '7days' || datePreset === '30days' ? format(today, 'yyyy-MM-dd') :
+    datePreset === 'today' || datePreset === '7days' || datePreset === '30days' ? today :
     datePreset === 'custom' ? endDate :
     '';
 
