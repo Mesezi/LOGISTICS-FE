@@ -6,9 +6,16 @@ export const api = axios.create({ baseURL: BASE_URL });
 
 // Token injector — set by the app shell on mount and after auth changes
 let _getToken: (() => Promise<string | null>) | null = null;
+let _unauthorizedHandler: (() => Promise<void>) | null = null;
+let _signOutStarted = false;
 
 export function setTokenGetter(fn: () => Promise<string | null>) {
   _getToken = fn;
+}
+
+export function setUnauthorizedHandler(handler: (() => Promise<void>) | null) {
+  _unauthorizedHandler = handler;
+  _signOutStarted = false;
 }
 
 api.interceptors.request.use(async (config) => {
@@ -18,6 +25,38 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      isInvalidSessionTokenError(error.response.data) &&
+      _unauthorizedHandler &&
+      !_signOutStarted
+    ) {
+      _signOutStarted = true;
+      void _unauthorizedHandler().catch((handlerError: unknown) => {
+        _signOutStarted = false;
+        console.error('Could not sign out after an invalid session token response.', handlerError);
+      });
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+function isInvalidSessionTokenError(data: unknown): boolean {
+  if (!data || typeof data !== 'object' || !('message' in data)) return false;
+  const message = data.message;
+  const text = Array.isArray(message) ? message.join(' ') : message;
+  if (typeof text !== 'string') return false;
+
+  return /\b(?:invalid|expired)\b.{0,50}\b(?:clerk\s+)?(?:session\s+)?token\b|\b(?:token|session)\b.{0,50}\b(?:invalid|expired)\b/i.test(
+    text,
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
