@@ -53,7 +53,7 @@ export function Drawer({
       {/* Panel — bottom sheet on mobile, side drawer on larger screens */}
       <div
         className={cls(
-          'fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-(--shadow-dialog) transition-transform duration-200',
+          'fixed inset-x-0 bottom-[calc(0px-env(safe-area-inset-bottom,0px))] z-50 flex h-[calc(92dvh+env(safe-area-inset-bottom,0px))] max-h-[calc(92dvh+env(safe-area-inset-bottom,0px))] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-(--shadow-dialog) transition-transform duration-200',
           'md:inset-y-0 md:inset-x-auto md:right-0 md:h-dvh md:max-h-none md:rounded-none',
           width,
           open ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full',
