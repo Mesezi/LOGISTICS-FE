@@ -296,7 +296,7 @@ function ProfileTab() {
             <h2 className="text-sm font-semibold text-ink">Display name</h2>
           </div>
           <form onSubmit={saveName} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid md:grid-cols-2 gap-3">
               <Input
                 label="First name"
                 placeholder={user?.firstName ?? 'First'}
