@@ -226,11 +226,16 @@ export function ExpenseDrawer() {
           />
         )}
 
-        <Input
-          label="Note (optional)"
-          placeholder="Additional context…"
-          {...register('note')}
-        />
+
+         <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-ink">Note (optional)</span>
+              <textarea
+                rows={4}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                 placeholder="Additional context…"
+               {...register('note')}
+              />
+            </label>
       </form>
     </Drawer>
   );

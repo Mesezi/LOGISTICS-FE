@@ -420,6 +420,7 @@ export function JobDrawer() {
               label="Date"
               type="date"
               error={errors.job_date?.message}
+              className="w-full"
               {...register('job_date')}
             />
             <label className="block">

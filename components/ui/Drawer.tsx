@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cls } from '@/lib/utils';
 
@@ -17,6 +18,11 @@ interface DrawerProps {
   width?: string;
 }
 
+const subscribeToPortalTarget = () => () => {};
+const getPortalTargetSnapshot = () =>
+  typeof document === 'undefined' ? null : document.body;
+const getServerPortalTargetSnapshot = () => null;
+
 export function Drawer({
   open,
   onClose,
@@ -28,6 +34,12 @@ export function Drawer({
   headerActions,
   width = 'md:w-[90%] md:max-w-xl',
 }: DrawerProps) {
+  const portalTarget = useSyncExternalStore(
+    subscribeToPortalTarget,
+    getPortalTargetSnapshot,
+    getServerPortalTargetSnapshot,
+  );
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -39,7 +51,9 @@ export function Drawer({
     };
   }, [open, onClose]);
 
-  return (
+  if (!portalTarget) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -103,6 +117,7 @@ export function Drawer({
           </div>
         )}
       </div>
-    </>
+    </>,
+    portalTarget,
   );
 }
