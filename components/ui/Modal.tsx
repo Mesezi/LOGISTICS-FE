@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cls } from '@/lib/utils';
 import { Button } from './Button';
@@ -15,7 +16,18 @@ interface ModalProps {
 
 const sizes = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-2xl' };
 
+const subscribeToPortalTarget = () => () => {};
+const getPortalTargetSnapshot = () =>
+  typeof document === 'undefined' ? null : document.body;
+const getServerPortalTargetSnapshot = () => null;
+
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+  const portalTarget = useSyncExternalStore(
+    subscribeToPortalTarget,
+    getPortalTargetSnapshot,
+    getServerPortalTargetSnapshot,
+  );
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -23,10 +35,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !portalTarget) return null;
 
-  return (
-    <div className="fixed inset-x-0 top-0 z-50 flex h-screen items-center justify-center p-4 [height:100dvh]">
+  return createPortal(
+    <div className="fixed inset-x-0 top-0 z-[60] flex h-screen items-center justify-center p-4 [height:100dvh]">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={onClose}
@@ -52,7 +64,8 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
         )}
         <div className="px-5 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    portalTarget,
   );
 }
 

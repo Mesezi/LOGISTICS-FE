@@ -7,13 +7,11 @@ import {
   MoreHorizontal, Trash2, Pencil, Check, MapPin,
   ArrowRightLeft, Handshake, ParkingCircle, CircleAlert,
 } from 'lucide-react';
-import { jobsApi, paymentsApi, ridersApi, searchApi, type Payment, type JobDetail, type JobStatus } from '@/lib/api';
+import { jobsApi, paymentsApi, searchApi, type Payment, type JobDetail, type JobStatus } from '@/lib/api';
 import { useUIStore } from '@/store/ui';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { ConfirmModal, Modal } from '@/components/ui/Modal';
 import { MoneyBar } from '@/components/ui/MoneyBar';
@@ -49,23 +47,10 @@ export function JobDetailDrawer() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [refundOpen,    setRefundOpen]    = useState(false);
-  const [pickupRiderOpen, setPickupRiderOpen] = useState(false);
-  const [pickupRiderId, setPickupRiderId] = useState('');
-
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', viewingJobId],
     queryFn: () => jobsApi.get(viewingJobId!),
     enabled: !!viewingJobId,
-  });
-
-  const {
-    data: ridersData,
-    isLoading: ridersLoading,
-    isError: ridersError,
-  } = useQuery({
-    queryKey: ['riders', 'active'],
-    queryFn: () => ridersApi.list({ active: true, limit: 100 }),
-    enabled: pickupRiderOpen,
   });
 
   const cancelMutation = useMutation({
@@ -85,7 +70,6 @@ export function JobDetailDrawer() {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['job', viewingJobId] });
       qc.invalidateQueries({ queryKey: ['reports'] });
-      setPickupRiderOpen(false);
     },
   });
 
@@ -156,23 +140,24 @@ export function JobDetailDrawer() {
         }
         footer={
           job && !isLoading && (job.status === 'pending' || job.status === 'picked_up') ? (
-            <StickyFooter
-              job={job}
-              onStatusAdvance={() => {
-                if (job.status === 'pending') {
-                  if (job.sublet_name) {
+            <div className="space-y-2">
+              {updateStatusMutation.isError && (
+                <p role="alert" className="text-sm text-loss">
+                  Could not update the job status. Please try again.
+                </p>
+              )}
+              <StickyFooter
+                job={job}
+                onStatusAdvance={() => {
+                  if (job.status === 'pending') {
                     updateStatusMutation.mutate({ status: 'picked_up' });
                     return;
                   }
-                  updateStatusMutation.reset();
-                  setPickupRiderId(job.rider_id ? String(job.rider_id) : '');
-                  setPickupRiderOpen(true);
-                  return;
-                }
-                updateStatusMutation.mutate({ status: 'delivered' });
-              }}
-              statusLoading={updateStatusMutation.isPending}
-            />
+                  updateStatusMutation.mutate({ status: 'delivered' });
+                }}
+                statusLoading={updateStatusMutation.isPending}
+              />
+            </div>
           ) : undefined
         }
         headerActions={
@@ -312,76 +297,6 @@ export function JobDetailDrawer() {
         confirmLabel="Delete job"
         danger
       />
-      <Modal
-        open={pickupRiderOpen}
-        onClose={() => {
-          if (!updateStatusMutation.isPending) setPickupRiderOpen(false);
-        }}
-        title="Assign rider"
-        size="sm"
-      >
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!pickupRiderId) return;
-            updateStatusMutation.mutate({
-              status: 'picked_up',
-              rider_id: Number(pickupRiderId),
-            });
-          }}
-          className="space-y-4"
-        >
-          <p className="text-sm leading-relaxed text-ink-muted">
-            Choose the rider assigned to this pickup. The job will be marked as picked up after you confirm.
-          </p>
-          {ridersError ? (
-            <p role="alert" className="text-sm text-loss">
-              Could not load active riders. Please close this dialog and try again.
-            </p>
-          ) : ridersLoading ? (
-            <Skeleton className="h-11 w-full rounded-[10px]" />
-          ) : (ridersData?.data ?? []).length === 0 ? (
-            <p role="alert" className="rounded-lg bg-debt-bg px-3 py-2 text-sm text-debt">
-              There are no active riders to assign. Add or activate a rider, then try again.
-            </p>
-          ) : (
-            <Select
-              label="Rider"
-              value={pickupRiderId}
-              onChange={(event) => setPickupRiderId(event.target.value)}
-              placeholder="Choose a rider"
-              options={(ridersData?.data ?? []).map((rider) => ({
-                value: rider.id,
-                label: rider.name,
-              }))}
-            />
-          )}
-          {updateStatusMutation.isError && (
-            <p role="alert" className="text-sm text-loss">
-              Could not assign the rider or update the job status. Please try again.
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              disabled={updateStatusMutation.isPending}
-              onClick={() => setPickupRiderOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              type="submit"
-              loading={updateStatusMutation.isPending}
-              disabled={ridersLoading || ridersError || !pickupRiderId || !(ridersData?.data.length)}
-            >
-              Assign &amp; mark picked up
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </>
   );
 }
