@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, subDays } from 'date-fns';
 import { CalendarDays } from 'lucide-react';
-import { reportsApi, clientsApi } from '@/lib/api';
+import { reportsApi, clientsApi, type RiderReportRow } from '@/lib/api';
 import { fmt, fmtDate } from '@/lib/utils';
 import { Table, Pagination } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
@@ -57,13 +57,13 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="-mx-4 overflow-x-auto px-4 pb-0.5 lg:mx-0 lg:px-0">
-        <div className="flex w-fit gap-1 rounded-xl border border-border bg-card p-1">
+      <div className="-mx-4 px-4 pb-0.5 lg:mx-0 lg:px-0">
+        <div className="flex w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 lg:w-fit lg:overflow-visible">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`shrink-0 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 tab === t
                   ? 'bg-brand text-white shadow-sm'
                   : 'text-ink-muted hover:text-ink'
@@ -176,19 +176,87 @@ function RidersReport({ params }: { params: Record<string, unknown> }) {
   if (isLoading) return <ReportSkeleton />;
   const rows = data?.data ?? [];
   return (
-    <Table
-      emptyMessage="No rider data for this period."
-      keyExtractor={(r: any) => r.riderId}
-      data={rows}
-      columns={[
-        { key: 'name',     header: 'Rider',          cell: (r: any) => <span className="font-semibold">{r.name}</span> },
-        { key: 'jobs',     header: 'Jobs',            cell: (r: any) => r.jobCount },
-        { key: 'del',      header: 'Delivered',       cell: (r: any) => <span className="text-success-text font-medium">{r.deliveredJobs}</span> },
-        { key: 'failed',   header: 'Failed',          cell: (r: any) => <span className="text-loss">{r.failedJobs}</span> },
-        { key: 'fees',     header: 'Office Fees',     cell: (r: any) => <span className="tabular font-semibold">{fmt(r.officeFees)}</span> },
-        { key: 'expenses', header: 'Rider Expenses',  cell: (r: any) => <span className="tabular text-loss">-{fmt(r.riderExpenses)}</span> },
-      ]}
-    />
+    rows.length === 0 ? (
+      <div className="rounded-xl border border-border bg-card px-5 py-10 text-center text-sm text-ink-muted">
+        No rider data for this period.
+      </div>
+    ) : (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {rows.map((rider: RiderReportRow) => {
+          const initials = rider.name
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? '')
+            .join('');
+          const netProfit = rider.officeFees - rider.riderExpenses;
+
+          return (
+            <article key={rider.riderId} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-xs font-semibold text-blue-700">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm font-semibold text-ink">{rider.name}</h2>
+                    <p className="mt-0.5 text-xs text-ink-muted">
+                      Rider #{String(rider.riderId).padStart(2, '0')}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-ink-muted">Net profit</p>
+                  <p className={`mt-0.5 tabular text-sm font-semibold ${netProfit < 0 ? 'text-loss' : 'text-success-text'}`}>
+                    {netProfit < 0 ? '-' : '+'}{fmt(Math.abs(netProfit))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 border-b border-border py-3 text-center">
+                <RiderStat label="Jobs" value={rider.jobCount} />
+                <RiderStat label="Delivered" value={rider.deliveredJobs} tone="success" />
+                <RiderStat label="Failed" value={rider.failedJobs} tone="loss" />
+              </div>
+
+              <dl className="space-y-2 pt-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-muted">Office Fees</dt>
+                  <dd className="tabular font-semibold text-ink">{fmt(rider.officeFees)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-ink-muted">Rider Expenses</dt>
+                  <dd className="tabular font-medium text-loss">-{fmt(rider.riderExpenses)}</dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+    )
+  );
+}
+
+function RiderStat({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: number;
+  tone?: 'neutral' | 'success' | 'loss';
+}) {
+  const styles = {
+    neutral: 'border-border bg-page text-ink',
+    success: 'border-success-text/10 bg-success-bg text-success-text',
+    loss: 'border-loss/10 bg-loss-bg text-loss',
+  };
+
+  return (
+    <div className={`rounded-xl border px-2 py-2 ${styles[tone]}`}>
+      <p className="text-[10px] font-medium">{label}</p>
+      <p className="mt-0.5 tabular text-sm font-semibold">{value}</p>
+    </div>
   );
 }
 

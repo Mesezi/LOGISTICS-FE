@@ -363,7 +363,7 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-[14px] border bg-card divide-y divide-border">
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card divide-y divide-border">
             {jobs.map((job) => (
               <JobRow key={job.id} job={job} onClick={() => openJobDetail(job.id)} />
             ))}

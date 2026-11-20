@@ -208,6 +208,16 @@ export interface DailyReport {
   expenses: number;
 }
 
+export interface RiderReportRow {
+  riderId: number;
+  name: string;
+  jobCount: number;
+  deliveredJobs: number;
+  failedJobs: number;
+  officeFees: number;
+  riderExpenses: number;
+}
+
 export interface AuditLog {
   id: number;
   account_id: number;
@@ -308,7 +318,7 @@ export const reportsApi = {
   income: (params?: Record<string, unknown>) =>
     api.get('/reports/income', { params }).then(r => r.data),
   riders: (params?: Record<string, unknown>) =>
-    api.get('/reports/riders', { params }).then(r => r.data),
+    api.get<{ data: RiderReportRow[] }>('/reports/riders', { params }).then(r => r.data),
   sublets: (params?: Record<string, unknown>) =>
     api.get('/reports/sublets', { params }).then(r => r.data),
   partners: (params?: Record<string, unknown>) =>
