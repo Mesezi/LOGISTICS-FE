@@ -5,9 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Banknote, Landmark, ReceiptText, RotateCcw, Ban,
   MoreHorizontal, Trash2, Pencil, Check, MapPin,
-  ArrowRightLeft, Handshake, ParkingCircle, CircleAlert,
+  ArrowRightLeft, Handshake, ParkingCircle, CircleAlert, Plus,
 } from 'lucide-react';
-import { jobsApi, paymentsApi, searchApi, type Payment, type JobDetail, type JobStatus } from '@/lib/api';
+import { jobsApi, paymentsApi, expensesApi, searchApi, type Payment, type Expense, type JobDetail, type JobStatus } from '@/lib/api';
 import { useUIStore } from '@/store/ui';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
@@ -20,7 +20,7 @@ import { fmt, fmtDate, fmtDateTime, statusColors } from '@/lib/utils';
 import { cls } from '@/lib/utils';
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */
-type Tab = 'details' | 'record' | 'transactions';
+type Tab = 'details' | 'record' | 'transactions' | 'expenses';
 
 /* ── Main component ─────────────────────────────────────────────────────────── */
 export function JobDetailDrawer() {
@@ -135,7 +135,7 @@ export function JobDetailDrawer() {
         width="md:w-[90%] md:max-w-md"
         tabs={
           job && !isLoading ? (
-            <TabBar tab={tab} setTab={setTab} paymentCount={job.payments.length} />
+            <TabBar tab={tab} setTab={setTab} paymentCount={job.payments.length} expenseCount={job.expenses.length} />
           ) : undefined
         }
         footer={
@@ -253,6 +253,7 @@ export function JobDetailDrawer() {
                 onDelete={(id) => deletePaymentMutation.mutate(id)}
               />
             )}
+            {tab === 'expenses' && <JobExpensesPanel key={job.id} job={job} />}
           </div>
         )}
       </Drawer>
@@ -318,20 +319,22 @@ function LoadingState() {
 
 /* ── Tab bar ────────────────────────────────────────────────────────────── */
 function TabBar({
-  tab, setTab, paymentCount,
+  tab, setTab, paymentCount, expenseCount,
 }: {
   tab: Tab;
   setTab: (t: Tab) => void;
   paymentCount: number;
+  expenseCount: number;
 }) {
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: 'details',      label: 'Details' },
     { key: 'record',       label: 'Payment' },
     { key: 'transactions', label: 'History', badge: paymentCount },
+    { key: 'expenses',     label: 'Expenses', badge: expenseCount },
   ];
 
   return (
-    <div className="flex gap-1 px-4 pt-2 pb-0 text-sm">
+    <div className="flex gap-1 px-3 pt-2 pb-0 text-sm">
       {tabs.map(({ key, label, badge }) => (
         <button
           key={key}
@@ -340,7 +343,7 @@ function TabBar({
           aria-selected={tab === key}
           onClick={() => setTab(key)}
           className={cls(
-            'relative flex h-9 items-center gap-1.5 rounded-t-lg px-3.5 text-sm font-semibold transition-colors',
+            'relative flex h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-t-lg px-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2 sm:text-sm',
             tab === key
               ? 'bg-card-alt text-brand after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-brand'
               : 'text-ink-muted hover:text-ink',
@@ -545,6 +548,173 @@ function DetailsPanel({ job }: { job: JobDetail }) {
 }
 
 /* ── Record payment panel ───────────────────────────────────────────────── */
+function JobExpensesPanel({ job }: { job: JobDetail }) {
+  const qc = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [mode, setMode] = useState<'cash' | 'transfer'>('cash');
+  const [bankName, setBankName] = useState('');
+  const [expenseDate, setExpenseDate] = useState(job.job_date);
+  const [note, setNote] = useState('');
+
+  const createMutation = useMutation({
+    mutationFn: () => expensesApi.create({
+      description: description.trim(),
+      amount: Number(amount),
+      mode,
+      ...(mode === 'transfer' && bankName.trim() ? { bank_name: bankName.trim() } : {}),
+      ...(note.trim() ? { note: note.trim() } : {}),
+      owner: 'office',
+      job_id: job.id,
+      expense_date: expenseDate,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job', job.id] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['reports'] });
+      setDescription('');
+      setAmount('');
+      setBankName('');
+      setNote('');
+      setAdding(false);
+    },
+  });
+
+  const sortedExpenses = [...job.expenses].sort((a, b) =>
+    (b.expense_date ?? b.created_at).localeCompare(a.expense_date ?? a.created_at),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div>
+          <p className="text-xs font-medium text-ink-muted">Total job expenses</p>
+          <p className="mt-0.5 tabular text-lg font-semibold text-ink">
+            {fmt(job.expenses.reduce((sum, expense) => sum + expense.amount, 0))}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setAdding((open) => !open); createMutation.reset(); }}
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"
+        >
+          <Plus size={15} strokeWidth={2} />
+          {adding ? 'Close' : 'Add expense'}
+        </button>
+      </div>
+
+      {adding && (
+        <form
+          className="space-y-3 rounded-xl border border-border bg-card p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!description.trim() || Number(amount) <= 0 || createMutation.isPending) return;
+            createMutation.mutate();
+          }}
+        >
+          <Input
+            label="Description"
+            placeholder="What was this expense for?"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            required
+          />
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              label="Amount (₦)"
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              required
+            />
+            <Input
+              label="Date"
+              type="date"
+              value={expenseDate}
+              onChange={(event) => setExpenseDate(event.target.value)}
+              className="min-w-0 max-w-full"
+            />
+          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-[13px] font-medium text-ink-muted">Payment mode</span>
+            <select
+              value={mode}
+              onChange={(event) => setMode(event.target.value as 'cash' | 'transfer')}
+              className="h-10 w-full rounded-[10px] border border-border bg-card px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            >
+              <option value="cash">Cash</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </label>
+          {mode === 'transfer' && (
+            <Input
+              label="Bank name"
+              placeholder="e.g. GTBank"
+              value={bankName}
+              onChange={(event) => setBankName(event.target.value)}
+            />
+          )}
+          <label className="block">
+            <span className="mb-1.5 block text-[13px] font-medium text-ink-muted">Note (optional)</span>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              className="w-full min-w-0 resize-y rounded-[10px] border border-border bg-card px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+          </label>
+          {createMutation.isError && (
+            <p role="alert" className="text-xs text-loss">
+              {(createMutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message
+                ?? 'Could not add this expense. Please try again.'}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={!description.trim() || Number(amount) <= 0 || createMutation.isPending}
+            className="h-10 w-full rounded-lg bg-brand text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:pointer-events-none disabled:opacity-50"
+          >
+            {createMutation.isPending ? 'Saving…' : 'Save expense to this job'}
+          </button>
+        </form>
+      )}
+
+      {sortedExpenses.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
+          <ReceiptText size={22} className="mx-auto mb-2 text-ink-grey" strokeWidth={1.75} />
+          <p className="text-sm font-medium text-ink">No expenses for this job yet</p>
+          <p className="mt-1 text-xs text-ink-muted">Add costs here to include them in this job’s profit.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+          {sortedExpenses.map((expense) => (
+            <JobExpenseRow key={expense.id} expense={expense} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JobExpenseRow({ expense }: { expense: Expense }) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3 px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-ink">{expense.description}</p>
+        <p className="mt-1 text-xs text-ink-muted">
+          {expense.expense_date ? fmtDate(expense.expense_date) : fmtDateTime(expense.created_at)}
+          {' · '}{expense.mode}{expense.bank_name ? ` · ${expense.bank_name}` : ''}
+        </p>
+        {expense.note && <p className="mt-1 break-words text-xs text-ink-muted">{expense.note}</p>}
+      </div>
+      <span className="shrink-0 tabular text-sm font-semibold text-loss">-{fmt(expense.amount)}</span>
+    </div>
+  );
+}
+
 function RecordPanel({
   job,
   rawAmount, setRawAmount,

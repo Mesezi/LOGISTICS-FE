@@ -425,7 +425,7 @@ export function JobDrawer() {
               label="Date"
               type="date"
               error={errors.job_date?.message}
-              className="w-full"
+              className="w-full min-w-0 max-w-full"
               {...register('job_date')}
             />
             <label className="block">
@@ -693,7 +693,7 @@ function SectionCard({
           {label}
         </span>
       </div>
-      <div className="space-y-3 px-4 py-3.5">
+      <div className="min-w-0 space-y-3 px-4 py-3.5">
         {children}
       </div>
     </div>

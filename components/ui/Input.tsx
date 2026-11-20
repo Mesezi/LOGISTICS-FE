@@ -13,13 +13,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, icon, suffix, className, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
-      <div className="space-y-1.5">
+      <div className="min-w-0 space-y-1.5">
         {label && (
           <label htmlFor={inputId} className="block text-[13px] font-medium text-ink-muted">
             {label}
           </label>
         )}
-        <div className="relative">
+        <div className="relative min-w-0">
           {icon && (
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-grey">
               {icon}

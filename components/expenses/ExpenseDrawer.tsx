@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -32,6 +32,8 @@ type FormData = z.infer<typeof schema>;
 export function ExpenseDrawer() {
   const { expenseDrawerOpen, editingExpenseId, editingExpense, closeExpenseDrawer } = useUIStore();
   const qc = useQueryClient();
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
 
   const { data: existing } = useQuery({
     queryKey: ['expense', editingExpenseId],
@@ -45,9 +47,11 @@ export function ExpenseDrawer() {
     queryFn: () => ridersApi.list({ active: true, limit: 100 }),
   });
 
-  const { data: clientsData } = useQuery({
-    queryKey: ['clients', 'all'],
-    queryFn: () => clientsApi.list({ limit: 100 }),
+  const { data: clientsData, isLoading: clientsLoading, isError: clientsError } = useQuery({
+    queryKey: ['clients', 'expense-search', clientQuery],
+    queryFn: () => clientsApi.list({ query: clientQuery, limit: 10 }),
+    enabled: clientQuery.trim().length > 0,
+    staleTime: 30_000,
   });
 
   const {
@@ -78,17 +82,38 @@ export function ExpenseDrawer() {
         client_id:    existing.client_id ? String(existing.client_id) : '',
         expense_date: existing.expense_date ?? format(new Date(), 'yyyy-MM-dd'),
       });
+      setClientQuery(existing.client?.name ?? '');
+      setClientPhone('');
     } else {
       reset({
         mode: 'cash',
         owner: 'office',
         expense_date: format(new Date(), 'yyyy-MM-dd'),
       });
+      setClientQuery('');
+      setClientPhone('');
     }
   }, [existing, reset, expenseDrawerOpen]);
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => {
+    mutationFn: async (data: FormData) => {
+      let clientId = data.client_id ? Number(data.client_id) : undefined;
+      if (data.owner === 'client' && !clientId) {
+        const name = clientQuery.trim();
+        if (!name) throw new Error('Enter a client name.');
+
+        const matches = await clientsApi.list({ query: name, limit: 20 });
+        const existingClient = matches.data.find(
+          (client) => client.name.trim().toLowerCase() === name.toLowerCase(),
+        );
+        const client = existingClient ?? await clientsApi.create({
+          name,
+          ...(clientPhone.trim() ? { phone: clientPhone.trim() } : {}),
+        });
+        clientId = client.id;
+        qc.invalidateQueries({ queryKey: ['clients'] });
+      }
+
       const body: Record<string, unknown> = {
         description:  data.description,
         amount:       data.amount,
@@ -99,7 +124,7 @@ export function ExpenseDrawer() {
       if (data.mode === 'transfer')              body.bank_name = data.bank_name;
       if (data.note)                             body.note      = data.note;
       if (data.owner === 'rider'  && data.rider_id)  body.rider_id  = Number(data.rider_id);
-      if (data.owner === 'client' && data.client_id) body.client_id = Number(data.client_id);
+      if (data.owner === 'client' && clientId) body.client_id = clientId;
       return editingExpenseId
         ? expensesApi.update(editingExpenseId, body)
         : expensesApi.create(body);
@@ -176,22 +201,78 @@ export function ExpenseDrawer() {
             />
           )}
           {owner === 'client' && (
-            <Select
-              placeholder="Select client…"
-              options={clients.map((c) => ({ value: c.id, label: c.name }))}
-              {...register('client_id')}
-            />
+            <div className="space-y-2">
+              <div className="relative">
+                <Input
+                  label="Client"
+                  placeholder="Search or enter client name"
+                  autoComplete="off"
+                  value={clientQuery}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setClientQuery(value);
+                    setClientPhone('');
+                    setValue('client_id', '');
+                  }}
+                  aria-expanded={clients.length > 0}
+                  aria-autocomplete="list"
+                  role="combobox"
+                />
+                {clientQuery.trim() && clients.length > 0 && (
+                  <ul role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-auto rounded-xl border border-border bg-card p-1 shadow-[var(--shadow-dialog)]">
+                    {clients.map((client) => (
+                      <li key={client.id} role="option" aria-selected={watch('client_id') === String(client.id)}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientQuery(client.name);
+                            setClientPhone(client.phone ?? '');
+                            setValue('client_id', String(client.id), { shouldDirty: true });
+                          }}
+                          className="flex min-h-10 w-full items-center justify-between gap-3 rounded-md px-3 text-left text-sm text-ink hover:bg-page"
+                        >
+                          <span className="truncate">{client.name}</span>
+                          <span className="shrink-0 text-xs text-ink-muted">{client.phone ?? ''}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {clientsLoading && <p className="text-xs text-ink-muted">Searching clients…</p>}
+              {clientQuery.trim() && clients.length === 0 && !clientsLoading && (
+                <p className="text-xs text-ink-muted">
+                  {clientsError ? 'Client search unavailable; a new client will be created when you save.' : 'No matching client. A new client will be created when you save.'}
+                </p>
+              )}
+              {!watch('client_id') && clientQuery.trim() && (
+                <Input
+                  label="Client phone (optional)"
+                  type="tel"
+                  placeholder="e.g. 08012345678"
+                  value={clientPhone}
+                  onChange={(event) => setClientPhone(event.target.value)}
+                />
+              )}
+            </div>
           )}
         </div>
 
-        <Input
-          label="Description"
-          placeholder="What was this for?"
-          error={errors.description?.message}
-          {...register('description')}
-        />
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-medium text-ink-muted">Description</span>
+          <textarea
+            placeholder="What was this for?"
+            rows={3}
+            aria-invalid={!!errors.description}
+            className={`w-full min-w-0 resize-y rounded-[10px] border bg-card px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-grey focus:border-brand focus:ring-2 focus:ring-brand/20 ${
+              errors.description ? 'border-loss' : 'border-border hover:border-ink-grey'
+            }`}
+            {...register('description')}
+          />
+          {errors.description && <p className="mt-1.5 text-xs font-medium text-loss">{errors.description.message}</p>}
+        </label>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label="Amount (₦)"
             type="number"
