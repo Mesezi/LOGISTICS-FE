@@ -32,6 +32,7 @@ const createJobSchema = (isEditing: boolean) => z.object({
   rider_id:       z.string().optional(),
   sublet_name:    z.string().optional(),
   sublet_amount:  z.coerce.number().min(0).default(0),
+  sublet_receiving_payment: z.boolean().default(false),
   has_partner:    z.boolean().default(false),
   partner_id:     z.string().optional(),
   partner_name:   z.string().optional(),
@@ -117,6 +118,7 @@ export function JobDrawer() {
       client_mode: 'existing',
       park_waybill: 0,
       sublet_amount: 0,
+      sublet_receiving_payment: false,
       partner_amount: 0,
       partner_id: '',
       partner_name: '',
@@ -126,6 +128,7 @@ export function JobDrawer() {
   });
 
   const execution    = watch('execution');
+  const subletReceivingPayment = watch('sublet_receiving_payment');
   const hasPartner   = watch('has_partner');
   const officeFee    = Number(watch('office_fee'))    || 0;
   const parkWaybill  = Number(watch('park_waybill'))  || 0;
@@ -154,6 +157,7 @@ export function JobDrawer() {
         rider_id:       existingJob.rider_id ? String(existingJob.rider_id) : '',
         sublet_name:    existingJob.sublet_name ?? '',
         sublet_amount:  existingJob.sublet_amount,
+        sublet_receiving_payment: existingJob.sublet_amount === 0,
         has_partner:    !!(existingJob.partner_id || existingJob.partner_name_snapshot || existingJob.partner_name),
         partner_id:     existingJob.partner_id ? String(existingJob.partner_id) : '',
         partner_name:   existingJob.partner?.name ?? existingJob.partner_name_snapshot ?? existingJob.partner_name ?? '',
@@ -170,6 +174,7 @@ export function JobDrawer() {
         client_mode: 'existing',
         park_waybill: 0,
         sublet_amount: 0,
+        sublet_receiving_payment: false,
         partner_amount: 0,
         partner_id: '',
         partner_name: '',
@@ -205,7 +210,7 @@ export function JobDrawer() {
         body.rider_id = Number(data.rider_id);
       if (data.execution === 'sublet') {
         body.sublet_name   = data.sublet_name;
-        body.sublet_amount = data.sublet_amount;
+        body.sublet_amount = data.sublet_receiving_payment ? 0 : data.sublet_amount;
       }
       if (data.has_partner && data.partner_id) {
         body.partner_id = Number(data.partner_id);
@@ -496,18 +501,34 @@ export function JobDrawer() {
           )}
 
           {execution === 'sublet' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <Input
                 label="Sublet Name"
                 placeholder="Courier name"
                 {...register('sublet_name')}
               />
-              <Input
-                label="Sublet Amount (₦)"
-                type="number"
-                min={0}
-                {...register('sublet_amount')}
-              />
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-brand"
+                  {...register('sublet_receiving_payment', {
+                    onChange: (event) => {
+                      if (event.target.checked) {
+                        setValue('sublet_amount', 0, { shouldDirty: true, shouldValidate: true });
+                      }
+                    },
+                  })}
+                />
+                Sublet is receiving payment
+              </label>
+              {!subletReceivingPayment && (
+                <Input
+                  label="Sublet Amount (₦)"
+                  type="number"
+                  min={0}
+                  {...register('sublet_amount')}
+                />
+              )}
             </div>
           )}
         </SectionCard>

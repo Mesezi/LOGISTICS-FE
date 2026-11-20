@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="app-content flex-1 overflow-y-auto overscroll-contain pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="app-content min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </main>
       </div>

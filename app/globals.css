@@ -133,6 +133,11 @@ input, select, textarea {
   color-scheme: light;
 }
 
+input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 button,
 input,
 select,

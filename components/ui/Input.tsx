@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             {...props}
             className={cls(
-              'w-full rounded-[10px] border bg-card text-sm text-ink',
+              'w-full min-w-0 rounded-[10px] border bg-card text-sm text-ink',
               'outline-none transition-colors duration-150',
               'placeholder:text-ink-grey',
               'focus:ring-2 focus:ring-brand/20 focus:border-brand',
