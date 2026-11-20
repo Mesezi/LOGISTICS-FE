@@ -160,6 +160,10 @@ export function JobDetailDrawer() {
               job={job}
               onStatusAdvance={() => {
                 if (job.status === 'pending') {
+                  if (job.sublet_name) {
+                    updateStatusMutation.mutate({ status: 'picked_up' });
+                    return;
+                  }
                   updateStatusMutation.reset();
                   setPickupRiderId(job.rider_id ? String(job.rider_id) : '');
                   setPickupRiderOpen(true);
